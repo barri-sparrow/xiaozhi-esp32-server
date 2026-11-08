@@ -1,0 +1,163 @@
+{
+  "services": [
+    {
+      "type": "pserv",
+      "name": "xiaozhi-mysql",
+      "runtime": "image",
+      "image": {
+        "url": "docker.io/library/mysql:8.4"
+      },
+      "plan": "1c-2g",
+      "disk": {
+        "name": "mysql-data",
+        "mountPath": "/var/lib/mysql",
+        "sizeGB": 10
+      },
+      "envVars": [
+        {
+          "key": "MYSQL_DATABASE",
+          "value": "xiaozhi_esp32_server"
+        },
+        {
+          "key": "MYSQL_USER",
+          "value": "xiaozhi"
+        },
+        {
+          "key": "MYSQL_PASSWORD",
+          "generateValue": true
+        },
+        {
+          "key": "MYSQL_ROOT_PASSWORD",
+          "generateValue": true
+        }
+      ],
+      "region": "singapore"
+    },
+    {
+      "type": "keyvalue",
+      "name": "xiaozhi-redis",
+      "plan": "free",
+      "ipAllowList": [],
+      "region": "singapore"
+    },
+    {
+      "type": "web",
+      "name": "xiaozhi-manager",
+      "runtime": "image",
+      "image": {
+        "url": "ghcr.io/xinnan-tech/xiaozhi-esp32-server:web_latest"
+      },
+      "plan": "1c-2g",
+      "healthCheckPath": "/",
+      "dockerCommand": "/bin/bash -c 'export SPRING_DATASOURCE_DRUID_URL=\"jdbc:mysql://${DB_HOST}:3306/xiaozhi_esp32_server?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&nullCatalogMeansCurrent=true&connectTimeout=30000&socketTimeout=30000\"; exec /start.sh'",
+      "disk": {
+        "name": "uploads",
+        "mountPath": "/uploadfile",
+        "sizeGB": 1
+      },
+      "envVars": [
+        {
+          "key": "PORT",
+          "value": "8002"
+        },
+        {
+          "key": "TZ",
+          "value": "Asia/Shanghai"
+        },
+        {
+          "key": "JAVA_TOOL_OPTIONS",
+          "value": "-Xms256m -Xmx1200m"
+        },
+        {
+          "key": "DB_HOST",
+          "fromService": {
+            "name": "xiaozhi-mysql",
+            "type": "pserv",
+            "property": "host"
+          }
+        },
+        {
+          "key": "SPRING_DATASOURCE_DRUID_USERNAME",
+          "value": "xiaozhi"
+        },
+        {
+          "key": "SPRING_DATASOURCE_DRUID_PASSWORD",
+          "fromService": {
+            "name": "xiaozhi-mysql",
+            "type": "pserv",
+            "envVarKey": "MYSQL_PASSWORD"
+          }
+        },
+        {
+          "key": "SPRING_DATA_REDIS_HOST",
+          "fromService": {
+            "name": "xiaozhi-redis",
+            "type": "keyvalue",
+            "property": "host"
+          }
+        },
+        {
+          "key": "SPRING_DATA_REDIS_PORT",
+          "value": "6379"
+        },
+        {
+          "key": "SPRING_DATA_REDIS_PASSWORD",
+          "value": ""
+        }
+      ],
+      "region": "singapore"
+    },
+    {
+      "type": "web",
+      "name": "xiaozhi-server",
+      "runtime": "docker",
+      "plan": "2c-4g",
+      "dockerfilePath": "./Dockerfile",
+      "healthCheckPath": "/healthz",
+      "disk": {
+        "name": "voice-data",
+        "mountPath": "/var/data",
+        "sizeGB": 5
+      },
+      "envVars": [
+        {
+          "key": "PORT",
+          "value": "10000"
+        },
+        {
+          "key": "TZ",
+          "value": "Asia/Shanghai"
+        },
+        {
+          "key": "PYTHONUNBUFFERED",
+          "value": "1"
+        },
+        {
+          "key": "DB_HOST",
+          "fromService": {
+            "name": "xiaozhi-mysql",
+            "type": "pserv",
+            "property": "host"
+          }
+        },
+        {
+          "key": "DB_PASSWORD",
+          "fromService": {
+            "name": "xiaozhi-mysql",
+            "type": "pserv",
+            "envVarKey": "MYSQL_PASSWORD"
+          }
+        },
+        {
+          "key": "MANAGER_HOST",
+          "fromService": {
+            "name": "xiaozhi-manager",
+            "type": "web",
+            "property": "host"
+          }
+        }
+      ],
+      "region": "singapore"
+    }
+  ]
+}
